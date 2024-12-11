@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Привидение выражения к нормальной форме</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            line-height: 1.5;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <h1>Привидение выражения к нормальной форме</h1>
+
+        <div>
+            <h3>Выражения для тестирования</h3>
+            <ul>
+                <li>(A && B) || C</li>
+                <li>(A || B) && (C || D)</li>
+                <li>(A || (B && C)) && (!D || E)</li>
+                <li>(A || B) && !C</li>
+            </ul>
+        </div>
+
+        <textarea id="expressionInput" placeholder="Введите логическое выражение (Например: (A || B) && !C)"></textarea>
+        <button onclick="normalizeExpression()">Преобразование</button>
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        function normalizeExpression() {
+            const input = document.getElementById('expressionInput').value;
+            const resultContainer = document.getElementById('result');
+            try {
+                const dnf = toDNF(input);
+                const cnf = toCNF(input);
+                resultContainer.innerHTML = `<h3>Результат:</h3>
+                    <p><strong>(ДНФ):</strong> ${dnf}</p>
+                    <p><strong>(КНФ):</strong> ${cnf}</p>`;
+            } catch (error) {
+                resultContainer.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
+            }
+        }
+
+        function toDNF(expression) {
+            const tokens = tokenize(expression);
+            const ast = parse(tokens);
+            const dnfAst = simplifyToDNF(ast);
+            return astToString(dnfAst);
+        }
+
+        function toCNF(expression) {
+            const tokens = tokenize(expression);
+            const ast = parse(tokens);
+            const cnfAst = simplifyToCNF(ast);
+            return astToString(cnfAst);
+        }
+
+        function tokenize(expression) {
+            const regex = /\(|\)|&&|\|\||!|[A-Za-z]+/g;
+            return expression.match(regex) || [];
+        }
+
+        function parse(tokens) {
+            const stack = [];
+            const output = [];
+
+            const precedence = {
+                '!': 3,
+                '&&': 2,
+                '||': 1
+            };
+
+            tokens.forEach(token => {
+                if (/^[A-Za-z]+$/.test(token)) {
+                    output.push({ type: 'Literal', value: token });
+                } else if (token === '(') {
+                    stack.push(token);
+                } else if (token === ')') {
+                    while (stack.length && stack[stack.length - 1] !== '(') {
+                        output.push({ type: 'Operator', value: stack.pop() });
+                    }
+                    stack.pop();
+                } else {
+                    while (
+                        stack.length &&
+                        precedence[token] <= precedence[stack[stack.length - 1]]
+                    ) {
+                        output.push({ type: 'Operator', value: stack.pop() });
+                    }
+                    stack.push(token);
+                }
+            });
+
+            while (stack.length) {
+                output.push({ type: 'Operator', value: stack.pop() });
+            }
+
+            return buildAST(output);
+        }
+
+        function buildAST(postfix) {
+            const stack = [];
+
+            postfix.forEach(token => {
+                if (token.type === 'Literal') {
+                    stack.push(token);
+                } else if (token.type === 'Operator') {
+                    if (token.value === '!') {
+                        const operand = stack.pop();
+                        stack.push({ type: 'Not', operand });
+                    } else {
+                        const right = stack.pop();
+                        const left = stack.pop();
+                        stack.push({ type: token.value === '&&' ? 'And' : 'Or', left, right });
+                    }
+                }
+            });
+
+            return stack[0];
+        }
+
+        function simplifyToDNF(ast) {
+            if (ast.type === 'Literal') {
+                return ast;
+            } else if (ast.type === 'Not') {
+                if (ast.operand.type === 'Literal') {
+                    return ast;
+                } else {
+                    throw new Error('Unsupported AST node type.');
+                }
+            } else if (ast.type === 'And' || ast.type === 'Or') {
+                const left = simplifyToDNF(ast.left);
+                const right = simplifyToDNF(ast.right);
+
+                if (ast.type === 'Or') {
+                    return { type: 'Or', left, right };
+                } else {
+                    if (left.type === 'Or') {
+                        return {
+                            type: 'Or',
+                            left: simplifyToDNF({ type: 'And', left: left.left, right }),
+                            right: simplifyToDNF({ type: 'And', left: left.right, right })
+                        };
+                    } else if (right.type === 'Or') {
+                        return {
+                            type: 'Or',
+                            left: simplifyToDNF({ type: 'And', left, right: right.left }),
+                            right: simplifyToDNF({ type: 'And', left, right: right.right })
+                        };
+                    } else {
+                        return { type: 'And', left, right };
+                    }
+                }
+            }
+
+            throw new Error('Unsupported AST node type.');
+        }
+
+        function simplifyToCNF(ast) {
+            if (ast.type === 'Literal') {
+                return ast;
+            } else if (ast.type === 'Not') {
+                if (ast.operand.type === 'Literal') {
+                    return ast;
+                } else {
+                    throw new Error('Unsupported AST node type.');
+                }
+            } else if (ast.type === 'And' || ast.type === 'Or') {
+                const left = simplifyToCNF(ast.left);
+                const right = simplifyToCNF(ast.right);
+
+                if (ast.type === 'And') {
+                    return { type: 'And', left, right };
+                } else {
+                    if (left.type === 'And') {
+                        return {
+                            type: 'And',
+                            left: simplifyToCNF({ type: 'Or', left: left.left, right }),
+                            right: simplifyToCNF({ type: 'Or', left: left.right, right })
+                        };
+                    } else if (right.type === 'And') {
+                        return {
+                            type: 'And',
+                            left: simplifyToCNF({ type: 'Or', left, right: right.left }),
+                            right: simplifyToCNF({ type: 'Or', left, right: right.right })
+                        };
+                    } else {
+                        return { type: 'Or', left, right };
+                    }
+                }
+            }
+
+            throw new Error('Unsupported AST node type.');
+        }
+
+        function astToString(ast) {
+            if (ast.type === 'Literal') {
+                return ast.value;
+            } else if (ast.type === 'Not') {
+                return `!(${astToString(ast.operand)})`;
+            } else if (ast.type === 'And') {
+                return `(${astToString(ast.left)} && ${astToString(ast.right)})`;
+            } else if (ast.type === 'Or') {
+                return `(${astToString(ast.left)} || ${astToString(ast.right)})`;
+            }
+
+            throw new Error('Unsupported AST node type.');
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Преобразование логического выражения</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            line-height: 1.5;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Преобразование логического выражения</h1>
+    <label for="expression">Введите логическое выражение (например: "true && false || !true"):</label>
+    <input type="text" id="expression" placeholder="Введите логическое выражение">
+    <button onclick="evaluateExpression()">Проверить</button>
+    <div id="result"></div>
+
+    <script>
+        function evaluateExpression() {
+            const input = document.getElementById('expression').value;
+            const resultDiv = document.getElementById('result');
+
+            try {
+                if (/[^\s\(\)\!\&\|truefalsenot]/.test(input)) {
+                    throw new Error("В выражении найдены недопустимые символы.");
+                }
+
+                const sanitizedInput = input
+                    .replace(/and/gi, '&&')
+                    .replace(/or/gi, '||')
+                    .replace(/not/gi, '!');
+
+                const result = eval(sanitizedInput);
+                if (typeof result !== 'boolean') {
+                    throw new Error("Выражение не является логическим.");
+                }
+
+                resultDiv.textContent = `Результат: ${result ? 'Истинно' : 'Ложно'}`;
+                resultDiv.style.color = result ? 'green' : 'red';
+            } catch (error) {
+                resultDiv.textContent = `Ошибка: ${error.message}`;
+                resultDiv.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>

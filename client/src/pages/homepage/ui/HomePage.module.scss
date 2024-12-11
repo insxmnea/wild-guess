@@ -1,0 +1,28 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  margin: 5px;
+  padding: 20px;
+  border-radius: 5px;
+  border: var(--border);
+  background-color: var(--color-gray-3);
+  color: var(--color-white);
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
